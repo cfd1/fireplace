@@ -32,6 +32,13 @@ class SpellType(IntEnum):
     TRIGGER_EFFECT = 4
 
 
+class RuneType(IntEnum):
+    """Rune types for Death Knight cards."""
+    BLOOD = 1
+    FROST = 2
+    UNHOLY = 3
+
+
 class PlayReq(IntEnum):
     """
     The playRequirements attribute contains an array of key: param values

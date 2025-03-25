@@ -9,10 +9,13 @@ class OG_023:
     """Primal Fusion"""
 
     requirements = {PlayReq.REQ_MINION_TARGET: 0, PlayReq.REQ_TARGET_TO_PLAY: 0}
-    play = Buff(TARGET, "OG_023t") * Count(FRIENDLY_MINIONS + TOTEM)
+    
+    def play(self):
+        count = Count(FRIENDLY_MINIONS + TOTEM).evaluate(self)
+        yield Buff(TARGET, "OG_023t", atk=count, max_health=count)
 
 
-OG_023t = buff(+1, +1)
+OG_023t = buff(0, 0)
 
 
 class OG_026:
