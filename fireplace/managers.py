@@ -126,6 +126,8 @@ class PlayerManager(Manager):
         GameTag.CARDTYPE: "type",
         GameTag.COMBO_ACTIVE: "combo",
         GameTag.CONTROLLER: "controller",
+        GameTag.CORPSES: "corpses",
+        GameTag.CORPSES_SPENT_THIS_GAME: "corpses_spent_this_game",
         GameTag.CURRENT_PLAYER: "current_player",
         GameTag.CURRENT_SPELLPOWER: "spellpower",
         GameTag.CURRENT_HEROPOWER_DAMAGE_BONUS: "heropower_damage",

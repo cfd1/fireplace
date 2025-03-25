@@ -133,3 +133,20 @@ def prepare_empty_game(class1=None, class2=None, game_class=BaseTestGame):
     _empty_mulligan(game)
 
     return game
+
+
+class PlayAndDeathrattle:
+    """
+    Helper class to play a card and trigger its deathrattle
+    """
+    def __init__(self, card):
+        self.card = card
+    
+    def __enter__(self):
+        self.card.play()
+        return self.card
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.card.zone == Zone.PLAY:
+            self.card.destroy()
+        return False

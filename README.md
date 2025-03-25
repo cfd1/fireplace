@@ -17,7 +17,10 @@ Currently targeting [Patch 32.0.0] with a phased approach.
   * Basic Location class implementation ✅
   * Cooldown mechanic ✅
   * Comprehensive test suite ✅
-* Death Knight Class & Runes (25.0.0) - *In Progress*
+* **Death Knight Class & Runes** (25.0.0) - **IMPLEMENTED** 
+  * Rune system for deck building ✅
+  * Corpse generation and spending ✅
+  * Blood, Frost, Unholy hero powers ✅
 * Hero Equipment (27.0.0) - *Planned*
 * Tools (29.0.0) - *Planned*
 * Dual-Type Minions (25.0.0) - *Planned*

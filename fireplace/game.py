@@ -21,6 +21,7 @@ from .entity import Entity
 from .exceptions import GameOver
 from .managers import GameManager
 from .utils import CardList
+from . import deathknight
 
 
 if TYPE_CHECKING:
@@ -312,6 +313,10 @@ class BaseGame(Entity):
         self.player2.first_player = False
 
         for player in self.players:
+            # Check if player is a DeathKnightPlayer and needs special setup
+            if isinstance(player, deathknight.DeathKnightPlayer):
+                self.log("Setting up Death Knight player %r", player)
+            
             player.prepare_for_game()
         self.manager.start_game()
 
@@ -398,6 +403,13 @@ class BaseGame(Entity):
             character.num_attacks = 0
             character.damaged_this_turn = 0
             character.healed_this_turn = 0
+
+        # Handle DeathKnight corpse generation at start of turn
+        if isinstance(player, deathknight.DeathKnightPlayer) and player.hero.power:
+            hero_power_id = player.hero.power.id
+            if hero_power_id in ("DK_HERO_01bp", "DK_HERO_02bp", "DK_HERO_03bp"):
+                self.log("%s hero power generates a corpse at the start of turn", player)
+                player.generate_corpse(1)
 
         player.draw()
         self.manager.step(self.next_step, Step.MAIN_END)
