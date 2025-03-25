@@ -8,7 +8,7 @@ from ..utils import *
 class CS2_034:
     """Fireblast (Jaina Proudmoore)"""
 
-    requirements = {PlayReq.REQ_TARGET_TO_PLAY: 0}
+    requirements = {PlayReq.REQ_TARGET_TO_PLAY: 1}
     activate = Hit(TARGET, 1)
 
 
@@ -31,7 +31,7 @@ class CS2_034_H2(CS2_034):
 class AT_132_MAGE:
     """Fireblast Rank 2"""
 
-    requirements = {PlayReq.REQ_TARGET_TO_PLAY: 0}
+    requirements = {PlayReq.REQ_TARGET_TO_PLAY: 1}
     activate = Hit(TARGET, 2)
 
 

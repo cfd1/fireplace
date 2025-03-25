@@ -136,6 +136,11 @@ def slot_property(attr, f=any):
     def func(self):
         return f(getattr(slot, attr, False) for slot in self.slots)
 
+    @func.setter
+    def func(self, value):
+        # Private attribute to store the value
+        setattr(self, "_" + attr, value)
+
     return func
 
 

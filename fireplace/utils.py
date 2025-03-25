@@ -7,7 +7,7 @@ from importlib import import_module
 from pkgutil import iter_modules
 from typing import List, TypeVar, overload
 from xml.etree import ElementTree
-
+from .exceptions import GameOver
 from hearthstone.enums import CardClass, CardType
 
 from .logging import log
@@ -205,6 +205,7 @@ def setup_game():
 
 def play_turn(game):
     player = game.current_player
+    print(f"(II) Player {player.name}'s turn")
 
     while True:
         while player.choice:

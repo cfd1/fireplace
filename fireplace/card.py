@@ -43,6 +43,7 @@ def Card(id):
         CardType.ENCHANTMENT: Enchantment,
         CardType.WEAPON: Weapon,
         CardType.HERO_POWER: HeroPower,
+        CardType.LOCATION: Location,
     }[data.type]
     if subclass is Spell:
         if data.secret:
@@ -760,6 +761,7 @@ class LiveEntity(PlayableCard, Entity):
         self.damaged_this_turn = 0
         self.healed_this_turn = 0
         self.additional_deathrattles = []
+        self._max_durability = self.data.durability
 
     def dump(self):
         data = super().dump()
@@ -1536,6 +1538,7 @@ class Weapon(rules.WeaponRules, LiveEntity):
     def __init__(self, *args):
         super().__init__(*args)
         self.damage = 0
+        self._max_durability = self.data.durability
 
     def dump(self):
         data = super().dump()
@@ -1700,3 +1703,45 @@ class HeroPower(PlayableCard):
         if self.passive_hero_power:
             return False
         return super().is_playable()
+
+
+class Location(PlayableCard):
+    """
+    Location cards are a new card type introduced in more recent expansions.
+    They have specific functionality including action cooldown.
+    """
+    location_action_cost = int_property("location_action_cost")
+    location_action_cooldown = int_property("location_action_cooldown")
+    playable_zone = Zone.PLAY
+    shifting_location = boolean_property("shifting_location")
+
+    def __init__(self, data):
+        super().__init__(data)
+        self.cooldown = 0
+
+    def dump(self):
+        result = super().dump()
+        result.update({"cooldown": self.cooldown})
+        return result
+  
+    def _set_zone(self, value):
+        if value == Zone.PLAY:
+            # Reset cooldown when played
+            self.cooldown = 0
+        super()._set_zone(value)
+
+    @property
+    def exhausted(self):
+        return self.cooldown > 0 or super().exhausted
+
+    def activate(self):
+        """
+        Activate the location card, setting its cooldown
+        """
+        self.cooldown = self.location_action_cooldown
+
+    def is_usable(self):
+        """
+        Check if the location is usable (not on cooldown)
+        """
+        return self.zone == Zone.PLAY and self.cooldown == 0 and not self.exhausted

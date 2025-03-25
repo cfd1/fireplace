@@ -172,15 +172,16 @@ class CardDB(dict[str, cardxml.CardXML]):
     def initialize(self, locale=default_language):
         log.info("Initializing card database")
         self.initialized = True
-        dirname = os.path.dirname(__file__)
-        filename = os.path.join(dirname, "CardDefs.xml")
         db2, _ = cardxml.load(locale=locale)
-        for id, card in db2.items():
-            self.dbf[card.dbf_id] = id
-        db, _ = cardxml.load(path=filename, locale=locale)
-        for id, card in db.items():
-            self[id] = self.merge(id, card)
-            self.dbf[card.dbf_id] = id
+        for card_id, card in db2.items():
+            self[card_id] = self.merge(card_id, card)
+            self.dbf[card.dbf_id] = card_id
+        # dirname = os.path.dirname(__file__)
+        # filename = os.path.join(dirname, "CardDefs.xml")
+        # db1, _ = cardxml.load(path=filename, locale=locale)
+        # for card_id, card in db1.items():
+        #     self[card_id] = self.merge(card_id, card)
+        #     self.dbf[card.dbf_id] = card_id
 
         log.info("Merged %i cards", len(self))
 

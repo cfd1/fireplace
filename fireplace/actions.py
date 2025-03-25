@@ -1100,7 +1100,14 @@ class PlayHeroPower(TargetedAction):
     TARGET = ActionArg()
 
     def do(self, source, heropower, targets):
-        actions = heropower.get_actions("activate")
+        try:
+            actions = heropower.get_actions("activate")
+        except AttributeError:
+            from fireplace.logging import log
+            log.error("Hero power %r does not have an 'activate' attribute", heropower)
+            # Return empty list if no actions found
+            actions = []
+            
         if not hasattr(targets, "__iter__"):
             targets = [targets]
         for target in targets:
