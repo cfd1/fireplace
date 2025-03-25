@@ -2267,3 +2267,16 @@ class Dormant(TargetedAction):
         target.dormant = True
         target.dormant_turns += amount
         source.game.manager.targeted_action(self, source, target, amount)
+
+
+class Reduce_Cooldown(TargetedAction):
+    """
+    Reduce the cooldown of a location card by 1.
+    """
+    TARGET = ActionArg()
+    
+    def do(self, source, target):
+        if hasattr(target, 'cooldown') and target.cooldown > 0:
+            target.cooldown -= 1
+            log.info("Reduced cooldown of %r to %i", target, target.cooldown)
+        return []

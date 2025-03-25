@@ -28,6 +28,15 @@ def test_location_type():
         deathrattle = []
         update = []
         progress_total = 0
+        
+        # Add required classes for card
+        class Hand:
+            events = []
+            update = []
+            
+        class Deck:
+            events = []
+            update = []
     
     mock_data.scripts = MockScripts
     
@@ -76,6 +85,15 @@ def test_location_cooldown():
         # Add methods required for the Card class
         def cost_mod(self, card):
             return 0
+            
+        # Add required classes for card
+        class Hand:
+            events = []
+            update = []
+            
+        class Deck:
+            events = []
+            update = []
     
     mock_data.scripts = MockScripts
     

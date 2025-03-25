@@ -8,9 +8,26 @@
 A Hearthstone simulator and implementation, written in Python.
 
 
-## Cards Implementation
+## Implementation Progress
 
-Now updated to [Patch 16.6.0.43246](https://hearthstone.wiki.gg/wiki/Patch_16.6.0.43246)
+Currently targeting [Patch 32.0.0] with a phased approach.
+
+### Core Mechanics
+* **Location Cards** (Added in Patch 24.0.0) - **IMPLEMENTED**
+  * Basic Location class implementation ✅
+  * Cooldown mechanic ✅
+  * Comprehensive test suite ✅
+* Death Knight Class & Runes (25.0.0) - *In Progress*
+* Hero Equipment (27.0.0) - *Planned*
+* Tools (29.0.0) - *Planned*
+* Dual-Type Minions (25.0.0) - *Planned*
+
+For the full implementation roadmap, see [implementation_plan.md](implementation_plan.md).
+
+
+## Original Cards Implementation
+
+Based on [Patch 16.6.0.43246](https://hearthstone.wiki.gg/wiki/Patch_16.6.0.43246)
 * **100%** Basic (142 of 142 cards)
 * **100%** Classic (245 of 245 cards)
 * **100%** Hall of Fame (24 of 24 cards)
