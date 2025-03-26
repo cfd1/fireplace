@@ -48,6 +48,44 @@ Not Implemented
 * `pip install .`
 
 
+## Card Data Update Tools
+
+Fireplace includes utility scripts for updating the card definitions (CardDefs.xml) from the HearthstoneJSON API:
+
+### Update Card Definitions
+
+The `update_carddefs.py` script provides several options for updating card data:
+
+```bash
+# Update all cards with full replacement
+python update_carddefs.py
+
+# Update cards but preserve custom entries
+python update_carddefs.py --selective
+
+# Update only existing cards without adding new ones
+python update_carddefs.py --update-existing-only
+
+# Update cards without filtering out unsupported types
+python update_carddefs.py --no-filter
+```
+
+### Analyze Card Data
+
+The `check_card_counts.py` script provides analysis of the card data:
+
+```bash
+# Compare current CardDefs.xml with the most recent backup
+python check_card_counts.py
+```
+
+This will show:
+- Card count differences between versions
+- Card type distribution
+- Top card sets by number of cards
+- File size comparison
+
+
 ## Documentation
 
 The [Fireplace Wiki](https://github.com/jleclanche/fireplace/wiki) is the best

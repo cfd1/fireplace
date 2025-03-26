@@ -38,6 +38,7 @@ class Weapon(rules.WeaponRules, LiveEntity):
     def __init__(self, *args):
         super().__init__(*args)
         self.damage = 0
+        self._max_durability = self.data.durability
 
     def dump(self):
         data = super().dump()
