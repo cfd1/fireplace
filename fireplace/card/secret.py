@@ -42,18 +42,18 @@ class Secret(Spell):
             data["cost"] = self.cost
             if self.card_class == CardClass.MAGE:
                 data["id"] = "SECRET_MAGE"
-                data["name"] = "法师奥秘"
+                data["name"] = "Mage Secret"
             elif self.card_class == CardClass.HUNTER:
                 data["id"] = "SECRET_HUNTER"
-                data["name"] = "猎人奥秘"
+                data["name"] = "Hunter Secret"
             elif self.card_class == CardClass.PALADIN:
                 data["id"] = "SECRET_PALADIN"
-                data["name"] = "圣骑士奥秘"
+                data["name"] = "Paladin Secret"
             elif self.card_class == CardClass.ROGUE:
                 data["id"] = "SECRET_ROGUE"
-                data["name"] = "盗贼奥秘"
+                data["name"] = "Rogue Secret"
             data["rarity"] = int(Rarity.INVALID)
-            data["description"] = "小心了！这张卡牌的效果在某个特殊情况下便会触发..."
+            data["description"] = "Be careful! This card's effect will trigger in a special situation..."
             data["spelltype"] = int(self.spelltype)
             data["classes"] = [int(card_class) for card_class in self.classes]
             return data
