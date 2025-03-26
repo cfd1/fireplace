@@ -1,66 +1,33 @@
+from itertools import chain
 import random
 import re
-from itertools import chain
 from typing import TYPE_CHECKING
-from bisect import bisect, bisect_left
-import copy
-import operator
-from hearthstone.entities import Entity as HSEntity
 from hearthstone.enums import (
     CardClass,
-    CardSet,
     CardType,
-    Faction,
     GameTag,
     MultiClassGroup,
     Race,
     Rarity,
-    Role,
-    Step,
     Zone,
 )
 
-from . import actions, cards, enums, rules
-from .aura import TargetableByAuras
-from .dsl.lazynum import LazyNum
-from .entity import BaseEntity, Entity, boolean_property, int_property, slot_property
-from .enums import PlayReq
-from .exceptions import InvalidAction
-from .managers import CardManager
-from .targeting import TARGETING_PREREQUISITES, is_valid_target
-from .utils import CardList
-from .events import OWN_TURN_BEGIN, TURN_BEGIN
-from .actions import Reduce_Cooldown, SELF
-
+from .. import actions, rules
+from ..aura import TargetableByAuras
+from ..dsl.lazynum import LazyNum
+from ..entity import BaseEntity, Entity, boolean_property, int_property, slot_property
+from ..enums import PlayReq
+from ..exceptions import InvalidAction
+from ..managers import CardManager
+from ..targeting import TARGETING_PREREQUISITES, is_valid_target
+from ..utils import CardList
 
 if TYPE_CHECKING:
     from hearthstone import cardxml
-
-    from .player import Player
+    from ..player import Player
 
 THE_COIN = "GAME_005"
 
-
-def Card(id):
-    data = cards.db[id]
-    subclass = {
-        CardType.HERO: Hero,
-        CardType.MINION: Minion,
-        CardType.SPELL: Spell,
-        CardType.ENCHANTMENT: Enchantment,
-        CardType.WEAPON: Weapon,
-        CardType.HERO_POWER: HeroPower,
-        CardType.LOCATION: Location,
-    }[data.type]
-    if subclass is Spell:
-        if data.secret:
-            subclass = Secret
-        elif data.quest:
-            subclass = Quest
-        elif data.sidequest:
-            subclass = SideQuest
-
-    return subclass(data)
 
 
 class BaseCard(BaseEntity):
@@ -209,23 +176,23 @@ class BaseCard(BaseEntity):
         return [self.card_class]
 
     @zone.setter
-    def zone(self, value):
-        self._set_zone(value)
+    def zone(self, zone):
+        self._set_zone(zone)
 
-    def _set_zone(self, value):
+    def _set_zone(self, zone):
         # TODO
         # Keep Buff: Deck -> Hand, Hand -> Play, Deck -> Play
         # Remove Buff: Other case
         self.old_zone = self.zone
 
-        if self.old_zone == value:
+        if self.old_zone == zone:
             self.logger.warning(
                 "%r attempted a same-zone move in %r", self, self.old_zone
             )
             return
 
         if self.old_zone:
-            self.logger.debug("%r moves from %r to %r", self, self.old_zone, value)
+            self.logger.debug("%r moves from %r to %r", self, self.old_zone, zone)
 
         caches = {
             Zone.HAND: self.controller.hand,
@@ -235,14 +202,14 @@ class BaseCard(BaseEntity):
         }
         if caches.get(self.old_zone) is not None:
             caches[self.old_zone].remove(self)
-        if caches.get(value) is not None:
+        if caches.get(zone) is not None:
             if hasattr(self, "_summon_index") and self._summon_index is not None:
-                caches[value].insert(self._summon_index, self)
+                caches[zone].insert(self._summon_index, self)
             else:
-                caches[value].append(self)
-        self._zone = value
+                caches[zone].append(self)
+        self._zone = zone
 
-        if value == Zone.PLAY or value == Zone.SECRET:
+        if zone == Zone.PLAY or zone == Zone.SECRET:
             self.play_counter = self.game.play_counter
             self.game.play_counter += 1
 
@@ -290,7 +257,6 @@ class BaseCard(BaseEntity):
 
     def clear_progress(self):
         self.progress = 0
-
 
 class PlayableCard(BaseCard, Entity, TargetableByAuras):
     windfury = boolean_property("windfury")
@@ -418,8 +384,8 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
         if self.zone == Zone.HAND:
             # Create the "Choose One" subcards
             del self.choose_cards[:]
-            for id in self.data.choose_cards:
-                card = self.controller.card(id, source=self, parent=self)
+            for card_id in self.data.choose_cards:
+                card = self.controller.card(card_id, source=self, parent=self)
                 self.choose_cards.append(card)
 
     def destroy(self):
@@ -744,8 +710,8 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 
     @property
     def targets(self):
-        return self.play_targets
-
+        return self.play_targets 
+    
 
 class LiveEntity(PlayableCard, Entity):
     has_deathrattle = boolean_property("has_deathrattle")
@@ -999,828 +965,3 @@ class Character(LiveEntity):
     def set_current_health(self, amount):
         return self.game.cheat_action(self, [actions.SetCurrentHealth(self, amount)])
 
-
-class Hero(Character):
-    galakrond_hero_card = boolean_property("galakrond_hero_card")
-
-    def __init__(self, data):
-        self.armor = 0
-        self.power: HeroPower = None
-        super().__init__(data)
-
-    def dump(self):
-        data = super().dump()
-        data["armor"] = self.armor
-        return data
-
-    @property
-    def entities(self):
-        yield self
-        if self.zone == Zone.PLAY:
-            if self.power:
-                yield self.power
-            if self.controller.weapon:
-                yield self.controller.weapon
-        yield from self.buffs
-
-    @property
-    def windfury(self):
-        ret = super().windfury
-        if self.controller.weapon:
-            # NOTE: As of 9786, Windfury is retained even when the weapon is exhausted.
-            return self.controller.weapon.windfury or ret
-        return ret
-
-    @property
-    def lifesteal(self):
-        ret = super().lifesteal
-        if self.controller.weapon and not self.controller.weapon.exhausted:
-            return self.controller.weapon.lifesteal or ret
-        return ret
-
-    @property
-    def poisonous(self):
-        ret = super().poisonous
-        if self.controller.weapon and not self.controller.weapon.exhausted:
-            return self.controller.weapon.poisonous or ret
-        return ret
-
-    @property
-    def has_overkill(self):
-        ret = super().has_overkill
-        if self.controller.weapon and not self.controller.weapon.exhausted:
-            return self.controller.weapon.has_overkill or ret
-        return ret
-
-    def _getattr(self, attr, i):
-        ret = super()._getattr(attr, i)
-        if attr == "atk":
-            if self.controller.weapon and not self.controller.weapon.exhausted:
-                ret += self.controller.weapon.atk
-        return ret
-
-    def _set_zone(self, value):
-        super()._set_zone(value)
-        if value == Zone.PLAY:
-            old_hero = self.controller.hero
-            self.controller.hero = self
-            if self.data.hero_power:
-                self.controller.summon(self.data.hero_power)
-            if old_hero:
-                old_hero.zone = Zone.GRAVEYARD
-        elif value == Zone.GRAVEYARD:
-            if self.power:
-                self.power.zone = Zone.GRAVEYARD
-            if self.controller.hero is self:
-                self.controller.playstate = PlayState.LOSING
-
-    def _hit(self, amount):
-        amount = super()._hit(amount)
-        if self.armor:
-            reduced_damage = min(amount, self.armor)
-            self.log("%r loses %r armor instead of damage", self, reduced_damage)
-            self.damage -= reduced_damage
-            self.armor -= reduced_damage
-        return amount
-
-    def play(self, target=None, index=None, choose=None):
-        armor = self.armor
-
-        # Copy hero buff
-        for buff in self.controller.hero.buffs:
-            # Recreate the buff stack
-            new_buff = self.controller.card(buff.id)
-            new_buff.source = buff.source
-            attributes = [
-                "atk",
-                "max_health",
-                "_xatk",
-                "_xhealth",
-                "_xcost",
-                "store_card",
-            ]
-            for attribute in attributes:
-                if hasattr(buff, attribute):
-                    setattr(new_buff, attribute, getattr(buff, attribute))
-            new_buff.apply(self)
-            if buff in self.game.active_aura_buffs:
-                new_buff.tick = buff.tick
-                self.game.active_aura_buffs.append(new_buff)
-
-        self.damage = self.controller.hero.damage
-        self.armor = self.controller.hero.armor
-        super().play(target, index, choose)
-        if armor:
-            self.game.cheat_action(self, [actions.GainArmor(self, armor)])
-
-
-class Minion(Character):
-    charge = boolean_property("charge")
-    has_inspire = boolean_property("has_inspire")
-    spellpower = int_property("spellpower")
-    has_magnetic = boolean_property("has_magnetic")
-    mark_of_evil = boolean_property("mark_of_evil")
-
-    silenceable_attributes = (
-        "always_wins_brawls",
-        "aura",
-        "cant_attack",
-        "cant_be_targeted_by_abilities",
-        "cant_be_targeted_by_hero_powers",
-        "charge",
-        "divine_shield",
-        "enrage",
-        "forgetful",
-        "frozen",
-        "has_deathrattle",
-        "has_inspire",
-        "lifesteal",
-        "poisonous",
-        "stealthed",
-        "taunt",
-        "windfury",
-        "cannot_attack_heroes",
-        "rush",
-        "secret_deathrattle",
-        "has_overkill",
-        "reborn",
-    )
-
-    def __init__(self, data):
-        self.always_wins_brawls = False
-        self.divine_shield = False
-        self.enrage = False
-        self.silenced = False
-        self._summon_index = None
-        self.dormant = False
-        self.dormant_turns = data.scripts.dormant_turns
-        self.reborn = False
-        super().__init__(data)
-
-    def dump(self):
-        data = super().dump()
-        data["has_inspire"] = self.has_inspire
-        data["divine_shield"] = self.divine_shield
-        data["silenced"] = self.silenced
-        data["dormant"] = self.dormant
-        data["reborn"] = self.reborn
-        return data
-
-    @property
-    def ignore_scripts(self):
-        return self.silenced or self.dormant
-
-    @property
-    def left_minion(self):
-        assert self.zone is Zone.PLAY, self.zone
-        ret = CardList()
-        index = self.zone_position - 1
-        left = self.controller.field[:index].filter(dormant=False)
-        if left:
-            ret.append(left[-1])
-        return ret
-
-    @property
-    def right_minion(self):
-        assert self.zone is Zone.PLAY, self.zone
-        ret = CardList()
-        index = self.zone_position - 1
-        right = self.controller.field[index + 1 :].filter(dormant=False)
-        if right:
-            ret.append(right[0])
-        return ret
-
-    @property
-    def adjacent_minions(self):
-        return self.left_minion + self.right_minion
-
-    @property
-    def attackable(self):
-        if self.stealthed:
-            return False
-        if self.dormant:
-            return False
-        return super().attackable
-
-    @property
-    def asleep(self):
-        return (
-            self.zone == Zone.PLAY
-            and not self.turns_in_play
-            and (not self.charge and not self.rush)
-        )
-
-    @property
-    def events(self):
-        if self.dormant:
-            return self.data.scripts.dormant_events
-        return super().events
-
-    @property
-    def exhausted(self):
-        if self.asleep:
-            return True
-        return super().exhausted
-
-    @property
-    def enraged(self):
-        return self.enrage and self.damage
-
-    @property
-    def update_scripts(self):
-        yield from super().update_scripts
-        if self.enraged:
-            yield from self.data.scripts.enrage
-
-    @property
-    def zone_position(self):
-        if self.zone == Zone.PLAY:
-            return self.controller.field.index(self) + 1
-        return super().zone_position
-
-    def _set_zone(self, value):
-        if value == Zone.PLAY:
-            if self._summon_index is not None:
-                self.controller.field.insert(self._summon_index, self)
-            else:
-                self.controller.field.append(self)
-        elif value == Zone.GRAVEYARD and self.zone == Zone.PLAY:
-            self.controller.minions_killed_this_turn += 1
-
-        if self.zone == Zone.PLAY:
-            self.log("%r is removed from the field", self)
-            self.controller.field.remove(self)
-            if self.damage:
-                self.damage = 0
-
-        super()._set_zone(value)
-
-    def _hit(self, amount):
-        if self.divine_shield:
-            self.log("%r's divine shield prevents %i damage.", self, amount)
-            self.game.cheat_action(self, [actions.LosesDivineShield(self)])
-            return 0
-
-        amount = super()._hit(amount)
-
-        if self.health < self.min_health and self.min_health > 0:
-            self.log("%r has HEALTH_MINIMUM of %i", self, self.min_health)
-            self.damage = self.max_health - self.min_health
-
-        return amount
-
-    def bounce(self):
-        return self.game.cheat_action(self, [actions.Bounce(self)])
-
-    def is_summonable(self):
-        summonable = super().is_summonable()
-        if len(self.controller.field) >= self.game.MAX_MINIONS_ON_FIELD:
-            return False
-        return summonable
-
-    def silence(self):
-        return self.game.cheat_action(self, [actions.Silence(self)])
-
-    def can_attack(self, target=None):
-        if self.dormant:
-            return False
-
-        return super().can_attack(target)
-
-
-class Spell(PlayableCard):
-    spelltype = enums.SpellType.INVALID
-    twinspell = boolean_property("twinspell")
-
-    def __init__(self, data):
-        self.immune_to_spellpower = False
-        self.receives_double_spelldamage_bonus = False
-        super().__init__(data)
-
-    @property
-    def twinspell_copy(self):
-        if self._twinspell_copy:
-            return cards.db.dbf[self._twinspell_copy]
-        return None
-
-    @twinspell_copy.setter
-    def twinspell_copy(self, value):
-        self._twinspell_copy = value
-
-    def dump(self):
-        data = super().dump()
-        data["spelltype"] = int(self.spelltype)
-        return data
-
-    def get_damage(self, amount, target):
-        amount = super().get_damage(amount, target)
-        if not self.immune_to_spellpower:
-            amount = self.controller.get_spell_damage(amount)
-        if self.receives_double_spelldamage_bonus:
-            amount = self.controller.get_spell_damage(amount)
-        return amount
-
-    def get_heal(self, amount, target):
-        if not self.immune_to_spellpower:
-            amount = self.controller.get_spell_heal(amount)
-        return amount
-
-    def _set_zone(self, value):
-        if value == Zone.PLAY:
-            value = Zone.GRAVEYARD
-        super()._set_zone(value)
-
-
-class Secret(Spell):
-    spelltype = enums.SpellType.SECRET
-
-    def dump_hidden(self):
-        if self.zone == Zone.SECRET:
-            data = super().dump_hidden()
-            data["type"] = int(CardType.SPELL)
-            data["cost"] = self.cost
-            if self.card_class == CardClass.MAGE:
-                data["id"] = "SECRET_MAGE"
-                data["name"] = "法师奥秘"
-            elif self.card_class == CardClass.HUNTER:
-                data["id"] = "SECRET_HUNTER"
-                data["name"] = "猎人奥秘"
-            elif self.card_class == CardClass.PALADIN:
-                data["id"] = "SECRET_PALADIN"
-                data["name"] = "圣骑士奥秘"
-            elif self.card_class == CardClass.ROGUE:
-                data["id"] = "SECRET_ROGUE"
-                data["name"] = "盗贼奥秘"
-            data["rarity"] = int(Rarity.INVALID)
-            data["description"] = "小心了！这张卡牌的效果在某个特殊情况下便会触发..."
-            data["spelltype"] = int(self.spelltype)
-            data["classes"] = [int(card_class) for card_class in self.classes]
-            return data
-        return super().dump_hidden()
-
-    @property
-    def events(self):
-        ret = super().events
-        if self.zone == Zone.SECRET and not self.exhausted:
-            ret += self.data.scripts.secret
-        return ret
-
-    @property
-    def exhausted(self):
-        return self.zone == Zone.SECRET and self.controller.current_player
-
-    @property
-    def zone_position(self):
-        if self.zone == Zone.SECRET:
-            return self.controller.secrets.index(self) + 1
-        return super().zone_position
-
-    def _set_zone(self, value):
-        if value == Zone.PLAY:
-            # Move secrets to the SECRET Zone when played
-            value = Zone.SECRET
-        if self.zone == Zone.SECRET:
-            self.controller.secrets.remove(self)
-        if value == Zone.SECRET:
-            self.controller.secrets.append(self)
-        super()._set_zone(value)
-
-    def is_summonable(self):
-        # secrets are all unique
-        if self.controller.secrets.contains(self.id):
-            return False
-        if len(self.controller.secrets) >= self.game.MAX_SECRETS_ON_PLAY:
-            return False
-        return super().is_summonable()
-
-
-class Quest(Spell):
-    spelltype = enums.SpellType.QUEST
-
-    def dump_hidden(self):
-        if self.zone == Zone.SECRET:
-            return self.dump()
-        return super().dump_hidden()
-
-    def is_summonable(self):
-        if len(self.controller.secrets) > 0 and self.controller.secrets[0].data.quest:
-            return False
-        if len(self.controller.secrets) >= self.game.MAX_SECRETS_ON_PLAY:
-            return False
-        return super().is_summonable()
-
-    def _set_zone(self, value):
-        if value == Zone.PLAY:
-            value = Zone.SECRET
-        if self.zone == Zone.SECRET:
-            self.controller.secrets.remove(self)
-        if value == Zone.SECRET:
-            self.controller.secrets.insert(0, self)
-        super()._set_zone(value)
-
-    @property
-    def events(self):
-        ret = super().events
-        if self.zone == Zone.SECRET:
-            ret += self.data.scripts.quest
-        return ret
-
-
-class SideQuest(Spell):
-    spelltype = enums.SpellType.SIDEQUEST
-
-    @property
-    def zone_position(self):
-        if self.zone == Zone.SECRET:
-            return self.controller.secrets.index(self) + 1
-        return super().zone_position
-
-    def dump_hidden(self):
-        if self.zone == Zone.SECRET:
-            return self.dump()
-        return super().dump_hidden()
-
-    def is_summonable(self):
-        if self.controller.secrets.contains(self.id):
-            return False
-        if len(self.controller.secrets) >= self.game.MAX_SECRETS_ON_PLAY:
-            return False
-        return super().is_summonable()
-
-    def _set_zone(self, value):
-        if value == Zone.PLAY:
-            value = Zone.SECRET
-        if self.zone == Zone.SECRET:
-            self.controller.secrets.remove(self)
-        if value == Zone.SECRET:
-            self.controller.secrets.append(self)
-        super()._set_zone(value)
-
-    @property
-    def events(self):
-        ret = super().events
-        if self.zone == Zone.SECRET:
-            ret += self.data.scripts.sidequest
-        return ret
-
-
-class Enchantment(BaseCard):
-    atk = int_property("atk")
-    cost = int_property("cost")
-    has_deathrattle = boolean_property("has_deathrattle")
-    incoming_damage_multiplier = int_property("incoming_damage_multiplier")
-    max_health = int_property("max_health")
-    spellpower = int_property("spellpower")
-    min_health = int_property("min_health")
-
-    buffs = []
-    slots = []
-
-    def __init__(self, data):
-        self.one_turn_effect = False
-        self.additional_deathrattles = []
-        super().__init__(data)
-
-    @property
-    def events(self):
-        events = super().events
-        if self.owner.zone == Zone.HAND:
-            events += self.data.scripts.Hand.events
-        if self.owner.zone == Zone.DECK:
-            events += self.data.scripts.Deck.events
-        return events
-
-    @property
-    def deathrattles(self):
-        if not self.has_deathrattle:
-            return []
-        ret = self.additional_deathrattles[:]
-        deathrattle = self.get_actions("deathrattle")
-        if deathrattle:
-            ret.append(deathrattle)
-        return ret
-
-    def _getattr(self, attr, i):
-        i += getattr(self, "_" + attr, 0)
-        return getattr(self.data.scripts, attr, lambda s, x: x)(self, i)
-
-    def _set_zone(self, zone):
-        if zone == Zone.PLAY:
-            self.owner.buffs.append(self)
-        elif zone == Zone.REMOVEDFROMGAME:
-            if self.zone == zone:
-                # Can happen if a Destroy is queued after a bounce, for example
-                self.logger.warning("Trying to remove %r which is already gone", self)
-                return
-            if hasattr(self.owner, "health"):
-                old_health = self.owner.health
-            self.owner.buffs.remove(self)
-            if self in self.game.active_aura_buffs:
-                self.game.active_aura_buffs.remove(self)
-            if hasattr(self.owner, "health"):
-                if self.owner.health < old_health:
-                    self.owner.damage = max(
-                        self.owner.damage - (old_health - self.owner.health), 0
-                    )
-
-        super()._set_zone(zone)
-
-    def apply(self, target):
-        self.log("Applying %r to %r", self, target)
-        self.owner = target
-        if hasattr(self.data.scripts, "apply"):
-            self.data.scripts.apply(self, target)
-        if hasattr(self.data.scripts, "max_health"):
-            self.log("%r removes all damage from %r", self, target)
-            target.damage = 0
-        self.zone = Zone.PLAY
-
-    def remove(self):
-        self.zone = Zone.REMOVEDFROMGAME
-
-
-class Weapon(rules.WeaponRules, LiveEntity):
-    health_attribute = "durability"
-
-    def __init__(self, *args):
-        super().__init__(*args)
-        self.damage = 0
-        self._max_durability = self.data.durability
-
-    def dump(self):
-        data = super().dump()
-        data["max_durability"] = self.max_durability
-        return data
-
-    @property
-    def durability(self):
-        return self.max_durability - self.damage
-
-    @property
-    def max_durability(self):
-        ret = self._max_durability
-        ret += self._getattr("max_health", 0)
-        return max(0, ret)
-
-    @max_durability.setter
-    def max_durability(self, value):
-        self._max_durability = value
-
-    @property
-    def exhausted(self):
-        return self.zone == Zone.PLAY and not self.controller.current_player
-
-    def _set_zone(self, zone):
-        if zone == Zone.PLAY:
-            if self.controller.weapon:
-                self.log("Destroying old weapon %r", self.controller.weapon)
-                self.controller.weapon.destroy()
-            self.controller.weapon = self
-        elif self.zone == Zone.PLAY:
-            self.controller.weapon = None
-        super()._set_zone(zone)
-
-
-class HeroPower(PlayableCard):
-    additional_activations = int_property("additional_activations")
-    heropower_disabled = int_property("heropower_disabled")
-    passive_hero_power = boolean_property("passive_hero_power")
-    playable_zone = Zone.PLAY
-    steady_shot_can_target = boolean_property("steady_shot_can_target")
-
-    def __init__(self, data):
-        self.activations_this_turn = 0
-        self.additional_activations_this_turn = 0
-        self._upgraded_hero_power = None
-        super().__init__(data)
-
-    def dump(self):
-        data = super().dump()
-        data["is_usable"] = self.is_usable()
-        return data
-
-    @property
-    def exhausted(self):
-        if self.heropower_disabled:
-            return True
-        if self.additional_activations == -1:
-            return False
-        return self.activations_this_turn >= (
-            1 + self.additional_activations + self.additional_activations_this_turn
-        )
-
-    @property
-    def events(self):
-        if self.heropower_disabled:
-            return []
-        return super().events
-
-    @property
-    def update_scripts(self):
-        if not self.heropower_disabled:
-            yield from super().update_scripts
-
-    @property
-    def upgraded_hero_power(self):
-        if self._upgraded_hero_power:
-            return cards.db.dbf[self._upgraded_hero_power]
-        return None
-
-    @upgraded_hero_power.setter
-    def upgraded_hero_power(self, value):
-        self._upgraded_hero_power = value
-
-    def _set_zone(self, value):
-        if value == Zone.PLAY:
-            if self.controller.hero.power:
-                self.controller.hero.power.destroy()
-            self.controller.hero.power = self
-            # Create the "Choose One" subcards
-            del self.choose_cards[:]
-            for id in self.data.choose_cards:
-                card = self.controller.card(id, source=self, parent=self)
-                self.choose_cards.append(card)
-
-        super()._set_zone(value)
-
-    def activate(self, target, choose):
-        return self.game.queue_actions(
-            self.controller, [actions.Activate(self, target, choose)]
-        )
-
-    def get_damage(self, amount, target):
-        amount = super().get_damage(amount, target)
-        return self.controller.get_heropower_damage(amount)
-
-    def get_heal(self, amount, target):
-        amount = super().get_heal(amount, target)
-        return self.controller.get_heropower_heal(amount)
-
-    def use(self, target=None, choose=None):
-        if choose:
-            if self.must_choose_one:
-                if choose in self.choose_cards:
-                    card = choose
-                else:
-                    choose = card = self.choose_cards.filter(id=choose)[0]
-                self.log("%r: choosing %r", self, choose)
-            else:
-                raise InvalidAction(
-                    "%r cannot be played with choice %r" % (self, choose)
-                )
-        else:
-            if self.must_choose_one:
-                raise InvalidAction(
-                    "%r requires a choice (one of %r)" % (self, self.choose_cards)
-                )
-            card = self
-
-        if not self.is_usable():
-            raise InvalidAction("%r can't be used." % (self))
-
-        self.log("%s uses hero power %r on %r", self.controller, card, target)
-
-        if card.requires_target():
-            if not target:
-                raise InvalidAction("%r requires a target." % (self))
-            elif target not in self.play_targets:
-                raise InvalidAction("%r is not a valid target for %r." % (target, self))
-            if self.controller.all_targets_random:
-                new_target = random.choice(self.play_targets)
-                self.logger.info(
-                    "Retargeting %r from %r to %r", self, target, new_target
-                )
-                target = new_target
-            self.target = target
-        elif target:
-            self.logger.warning(
-                "%r does not require a target, ignoring target %r", self, target
-            )
-
-        ret = self.activate(target, choose)
-
-        self.controller.times_hero_power_used_this_game += 1
-        self.target = None
-
-        return ret
-
-    def is_usable(self):
-        if self.exhausted:
-            return False
-        if self.passive_hero_power:
-            return False
-        return super().is_playable()
-
-
-class Location(PlayableCard):
-    """
-    Location cards are a new type of card that was added in Patch 16.6.0.
-    They have specific functionality including action cooldown.
-    """
-    
-    playable_zone = Zone.PLAY
-    shifting_location = boolean_property("shifting_location")
-    events = []  # Default empty events list
-
-    def __init__(self, data):
-        super().__init__(data)
-        # Initialize instance variables specific to locations
-        self._cooldown = 0
-        self._turns_in_play = 0
-        self._immune = False
-        self._to_be_destroyed = False
-        
-    @property
-    def location_action_cooldown(self):
-        if isinstance(getattr(self.data.scripts, "location_action_cooldown", 0), int):
-            return getattr(self.data.scripts, "location_action_cooldown", 0)
-        
-        return self._getattr("location_action_cooldown", 0)
-        
-    @property
-    def location_action_cost(self):
-        if isinstance(getattr(self.data.scripts, "location_action_cost", 0), int):
-            return getattr(self.data.scripts, "location_action_cost", 0)
-        else:
-            return self._getattr("location_action_cost", 0)
-    
-    @property
-    def immune(self):
-        return self._immune
-        
-    @immune.setter
-    def immune(self, value):
-        self._immune = value
-        
-    @property
-    def incoming_damage_multiplier(self):
-        return 1
-    
-    @property
-    def to_be_destroyed(self):
-        return self._to_be_destroyed
-        
-    @to_be_destroyed.setter
-    def to_be_destroyed(self, value):
-        self._to_be_destroyed = value
-    
-    @property
-    def dead(self):
-        return self.zone == Zone.GRAVEYARD or self.to_be_destroyed
-    
-    def _reset_state(self):
-        super()._reset_state()
-        self.cooldown = 0
-        self._turns_in_play = 0
-        
-    def setup(self):
-        super().setup()
-        self.events = [OWN_TURN_BEGIN.on(Reduce_Cooldown(SELF))]
-        
-    def get_controller_dump(self):
-        result = super().get_controller_dump()
-        result.update({"cooldown": self.cooldown})
-        return result
-    
-    def play(self, *args):
-        # Reset cooldown when played
-        self.cooldown = 0
-        return super().play(*args)
-    
-    def _set_zone(self, value):
-        if value == Zone.PLAY:
-            # Reset cooldown when played
-            self.cooldown = 0
-        super()._set_zone(value)
-    
-    @property
-    def on_cooldown(self):
-        return self.cooldown > 0
-        
-    @property 
-    def turns_in_play(self):
-        return self._turns_in_play
-        
-    @turns_in_play.setter
-    def turns_in_play(self, value):
-        self._turns_in_play = value
-        
-    def activate(self):
-        """
-        Activate the location card, setting its cooldown
-        """
-        self.cooldown = self.location_action_cooldown
-        
-    def is_usable(self):
-        """
-        Check if the location is usable (not on cooldown)
-        """
-        return self.zone == Zone.PLAY and self.cooldown == 0
-        
-    @property
-    def cooldown(self):
-        return self._cooldown
-        
-    @cooldown.setter
-    def cooldown(self, value):
-        self._cooldown = value
