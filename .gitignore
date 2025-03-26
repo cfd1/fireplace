@@ -3,6 +3,7 @@ build
 fireplace.egg-info
 coverage.xml
 venv
+fireplace_venv
 
 *.pyc
 .tox
