@@ -47,7 +47,8 @@ class SideQuest(Spell):
         return super().dump_hidden()
 
     def is_summonable(self):
-        if self.controller.secrets.contains(self.id):
+        # Check if a sidequest with same ID exists in secrets
+        if any(secret.id == self.id for secret in self.controller.secrets):
             return False
         if len(self.controller.secrets) >= self.game.MAX_SECRETS_ON_PLAY:
             return False
