@@ -3,7 +3,7 @@ from .base_manager import Manager
 
 
 class GameManager(Manager):
-    map = {
+    tag_map = {
         GameTag.CARDTYPE: "type",
         GameTag.NEXT_STEP: "next_step",
         GameTag.NUM_MINIONS_KILLED_THIS_TURN: "minions_killed_this_turn",

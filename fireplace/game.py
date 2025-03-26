@@ -151,22 +151,22 @@ class BaseGame(Entity):
         return ret
 
     def attack(self, source, target):
-        type = BlockType.ATTACK
+        action_type = BlockType.ATTACK
         actions = [Attack(source, target)]
-        result = self.action_block(source, actions, type, target=target)
+        result = self.action_block(source, actions, action_type, target=target)
         if self.state != State.COMPLETE:
             self.manager.step(Step.MAIN_ACTION, Step.MAIN_END)
         return result
 
     def joust(self, source, challenger, defender, actions):
-        type = BlockType.JOUST
+        action_type = BlockType.JOUST
         return self.action_block(
-            source, actions, type, event_args=[challenger, defender]
+            source, actions, action_type, event_args=[challenger, defender]
         )
 
     def main_power(self, source, actions, target):
-        type = BlockType.POWER
-        return self.action_block(source, actions, type, target=target)
+        action_type = BlockType.POWER
+        return self.action_block(source, actions, action_type, target=target)
 
     def play_card(
         self,
@@ -175,25 +175,24 @@ class BaseGame(Entity):
         index: int,
         choose: "PlayableCard | str",
     ):
-        type = BlockType.PLAY
+        action_type = BlockType.PLAY
         player = card.controller
         actions = [Play(card, target, index, choose)]
-        return self.action_block(player, actions, type, index, target)
+        return self.action_block(player, actions, action_type, index, target)
 
     def process_deaths(self):
-        type = BlockType.DEATHS
-
+        action_type = BlockType.DEATHS
         if any(card.dead for card in self.live_entities):
-            self.action_start(type, self, 0, None)
+            self.action_start(action_type, self, 0, None)
             self.trigger(self, [Death(self.live_entities)], event_args=None)
-            self.action_end(type, self)
+            self.action_end(action_type, self)
 
     def trigger(self, source, actions, event_args):
         """
         Perform actions as a result of an event listener (TRIGGER)
         """
-        type = BlockType.TRIGGER
-        return self.action_block(source, actions, type, event_args=event_args)
+        action_type = BlockType.TRIGGER
+        return self.action_block(source, actions, action_type, event_args=event_args)
 
     def cheat_action(self, source, actions):
         """

@@ -12,22 +12,22 @@ year = ZodiacYear.DRAGON
 default_language = "enUS"
 
 
-def get_script_definition(id, card=None):
+def get_script_definition(card_id, card=None):
     """
     Find and return the script definition for card
     """
     if not card:
-        card = db[id]
+        card = db[card_id]
 
     if GameTag.DECK_RULE_COUNT_AS_COPY_OF_CARD_ID in card.tags:
         dbf_id = card.tags[GameTag.DECK_RULE_COUNT_AS_COPY_OF_CARD_ID]
         if dbf_id < card.dbf_id and dbf_id in db.dbf:
-            id = db.dbf[dbf_id]
+            card_id = db.dbf[dbf_id]
 
     for cardset in CARD_SETS:
         module = import_module("fireplace.cards.%s" % (cardset))
-        if hasattr(module, id):
-            cls = getattr(module, id)
+        if hasattr(module, card_id):
+            cls = getattr(module, card_id)
             methods = [
                 attr
                 for attr in dir(cls)
@@ -43,21 +43,21 @@ class CardDB(dict[str, cardxml.CardXML]):
         self.dbf = {}
 
     @staticmethod
-    def merge(id, card, cardscript=None):
+    def merge(card_id, card, cardscript=None):
         """
         Find the xmlcard and the card definition of \a id
         Then return a merged class of the two
         """
         if card is None:
-            card = cardxml.CardXML(id)
+            card = cardxml.CardXML(card_id)
 
         if cardscript is None:
-            cardscript = get_script_definition(id, card)
+            cardscript = get_script_definition(card_id, card)
 
         if cardscript:
-            card.scripts = type(id, (cardscript,), {})
+            card.scripts = type(card_id, (cardscript,), {})
         else:
-            card.scripts = type(id, (), {})
+            card.scripts = type(card_id, (), {})
 
         scriptnames = (
             "activate",
@@ -263,4 +263,4 @@ class CardDB(dict[str, cardxml.CardXML]):
 # it exists.
 if "db" not in globals():
     db = CardDB()
-    filter = db.filter
+    db_filter = db.filter

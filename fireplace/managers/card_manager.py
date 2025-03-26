@@ -159,4 +159,4 @@ CARD_ATTRIBUTE_MAP = {
 
 
 class CardManager(Manager):
-    map = CARD_ATTRIBUTE_MAP 
+    tag_map = CARD_ATTRIBUTE_MAP 

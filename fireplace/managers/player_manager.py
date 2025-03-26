@@ -5,7 +5,7 @@ from .base_manager import Manager
 
 
 class PlayerManager(Manager):
-    map = {
+    tag_map = {
         GameTag.CANT_DRAW: "cant_draw",
         GameTag.CARDTYPE: "type",
         GameTag.COMBO_ACTIVE: "combo",

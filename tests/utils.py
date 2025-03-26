@@ -76,7 +76,7 @@ def _draft(card_class, exclude, include):
     return _draftcache[(card_class, exclude, include)], card_class.default_hero
 
 
-_heroes = fireplace.cards.filter(collectible=True, type=CardType.HERO)
+_heroes = fireplace.cards.db_filter(collectible=True, type=CardType.HERO)
 
 
 class BaseTestGame(CoinRules, BaseGame):

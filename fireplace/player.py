@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 class Player(Entity, TargetableByAuras):
     Manager = PlayerManager
+    type = CardType.PLAYER
     all_targets_random = slot_property("all_targets_random")
     cant_overload = slot_property("cant_overload")
     choose_both = slot_property("choose_both")
@@ -38,7 +39,6 @@ class Player(Entity, TargetableByAuras):
     heropower_damage_adjustment = slot_property("heropower_damage", sum)
     spells_cost_health = slot_property("spells_cost_health")
     murlocs_cost_health = slot_property("murlocs_cost_health")
-    type = CardType.PLAYER
 
     def __init__(self, name, deck: list[str], hero: str, is_standard=True):
         self.game: Game = None
@@ -261,8 +261,8 @@ class Player(Entity, TargetableByAuras):
                 taunt=getattr(buff, "taunt", False),
             )
 
-    def card(self, id, source=None, parent=None, zone=Zone.SETASIDE):
-        card = Card(id)
+    def card(self, card_id, source=None, parent=None, zone=Zone.SETASIDE):
+        card = Card(card_id)
         card.controller = self
         card.zone = zone
         if source is not None:
@@ -270,7 +270,7 @@ class Player(Entity, TargetableByAuras):
         if parent is not None:
             card.parent_card = parent
         # C'THUN
-        if self.cthun and id == self.cthun.id:
+        if self.cthun and card_id == self.cthun.id:
             self.copy_cthun_buff(card)
         self.game.manager.new_entity(card)
         return card
@@ -397,8 +397,8 @@ class Player(Entity, TargetableByAuras):
             return ret[0][0]
         return ret
 
-    def give(self, id: str) -> "PlayableCard":
-        cards = self.game.cheat_action(self, [Give(self, id)])[0][0]
+    def give(self, card_id: str) -> "PlayableCard":
+        cards = self.game.cheat_action(self, [Give(self, card_id)])[0][0]
         if len(cards) > 0:
             return cards[0]
 

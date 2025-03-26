@@ -71,7 +71,7 @@ class RandomCardPicker(LazyValue):
 
         from .. import cards
 
-        return cards.filter(**new_filters)
+        return cards.db_filter(**new_filters)
 
     def evaluate(self, source, cards=None) -> str:
         """

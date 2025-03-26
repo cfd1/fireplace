@@ -43,8 +43,8 @@ class ExactCopy(Copy):
     An exact copy will include buffs and all tags.
     """
 
-    def __init__(self, selector, id=None):
-        self.id = id
+    def __init__(self, selector, card_id=None):
+        self.id = card_id
         self.selector = selector
 
     def copy(self, source, entity):
@@ -90,8 +90,8 @@ class KeepMagneticCopy(Copy):
     They keep any <b>Magnetic</b> upgrades
     """
 
-    def __init__(self, selector, id=None):
-        self.id = id
+    def __init__(self, selector, card_id=None):
+        self.id = card_id
         self.selector = selector
 
     def copy(self, source, entity):

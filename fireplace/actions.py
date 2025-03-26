@@ -1501,7 +1501,7 @@ class Mill(TargetedAction):
 
 class Morph(TargetedAction):
     """
-    Morph minion target into \a minion id
+    Morph minion target into another minion id
     """
 
     TARGET = ActionArg()

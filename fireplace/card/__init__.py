@@ -45,8 +45,8 @@ if TYPE_CHECKING:
 THE_COIN = "GAME_005"
 
 
-def Card(id):
-    data = cards.db[id]
+def Card(card_id):
+    data = cards.db[card_id]
     subclass = {
         CardType.HERO: Hero,
         CardType.MINION: Minion,
