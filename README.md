@@ -42,11 +42,50 @@ Not Implemented
 
 * Python 3.10+
 
-
 ## Installation
 
-* `pip install .`
+### Basic Installation
 
+```bash
+pip install .
+```
+
+### Development Installation
+
+For development, you can install the package with additional dependencies for testing, benchmarking, and code formatting:
+
+```bash
+pip install -e ".[test,benchmark,format]"
+```
+
+This will install:
+- Test dependencies (pytest, pytest-cov, coverage)
+- Benchmark dependencies (pytest-benchmark)
+- Code formatting tools (black)
+
+## Development
+
+### Running Tests
+
+```bash
+pytest
+```
+
+### Running Benchmarks
+
+```bash
+pytest tests/benchmarks.py
+```
+
+### Code Formatting
+
+```bash
+# Check formatting
+black --check .
+
+# Format code
+black .
+```
 
 ## Card Data Update Tools
 

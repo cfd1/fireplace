@@ -1,0 +1,98 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fireplace"
+version = "0.1.0"
+description = "Hearthstone engine reimplementation and simulator"
+authors = [
+    {name = "Jerome Leclanche", email = "jerome@leclan.ch"},
+]
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Topic :: Games/Entertainment :: Simulation"
+]
+dependencies = [
+    "hearthstone @ git+https://github.com/shinoi2/python-hearthstone.git",
+    "hearthstone_data",
+]
+
+[tool.hatch.packages.find]
+exclude = ["tests*"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["fireplace"]
+include = ["fireplace/cards/CardDefs.xml"]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+]
+benchmark = [
+    "pytest-benchmark[aspect]",
+]
+format = [
+    "black",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=fireplace"
+
+[tool.coverage.run]
+source = ["fireplace"]
+
+[tool.coverage.report]
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+include = '\.pyi?$'
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py310, benchmark, format-check
+
+[gh-actions]
+python =
+    3.10: py310, benchmark, format-check
+
+[testenv]
+deps =
+    {test}
+commands =
+    coverage run --source fireplace -m pytest tests
+    coverage xml -o coverage.xml
+
+[testenv:benchmark]
+deps =
+    {benchmark}
+commands =
+    pytest {toxinidir}/tests/benchmarks.py
+
+[testenv:format-check]
+deps =
+    {format}
+commands =
+    black --check .
+""" 
